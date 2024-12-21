@@ -1,0 +1,223 @@
+from sense_hat import SenseHat
+from time import sleep, time
+from random import choice, randint
+
+sense = SenseHat()
+
+
+black = (0, 0, 0)
+red = (255, 0, 0)
+yellow = (255, 255, 0)
+r = (255, 0, 0)
+b = (0, 0, 0)
+w = (255, 255, 255)
+g = (0, 0, 255)
+gr = (0, 255, 0)
+
+#Rainbow colors for win message
+rainbow_colors = [
+    (255, 0, 0), (255, 127, 0), (255, 255, 0), 
+    (0, 255, 0), (0, 0, 255), (75, 0, 130), (148, 0, 211)
+]
+
+
+german_flag = [
+    black, black, black, black, black, black, black, black,
+    black, black, black, black, black, black, black, black,
+    black, black, black, black, black, black, black, black,
+    red, red, red, red, red, red, red, red,
+    red, red, red, red, red, red, red, red,
+    red, red, red, red, red, red, red, red,
+    yellow, yellow, yellow, yellow, yellow, yellow, yellow, yellow,
+    yellow, yellow, yellow, yellow, yellow, yellow, yellow, yellow,
+]
+
+#Initialize the icon for the scoreboard
+team_icon = [
+    w, w, w, r, r, w, w, w,
+    w, w, r, r, r, r, w, w,
+    w, w, r, r, r, r, w, w,
+    w, w, w, r, r, w, w, w,
+    r, r, r, r, r, r, r, r,
+    w, w, w, w, w, w, w, w,
+    yellow, yellow, yellow, yellow, yellow, yellow, yellow, yellow,
+    w, w, w, w, w, w, w, w,
+]
+
+
+dice_patterns = {
+    1: [
+        w, w, w, w, w, w, w, w,
+        w, w, w, w, w, w, w, w,
+        w, w, b, b, b, b, w, w,
+        w, w, b, b, b, b, w, w,
+        w, w, b, b, b, b, w, w,
+        w, w, b, b, b, b, w, w,
+        w, w, w, w, w, w, w, w,
+        w, w, w, w, w, w, w, w,
+    ],
+    2: [
+        w, w, w, w, w, w, w, w,
+        w, w, w, b, b, w, w, w,
+        w, w, w, b, b, w, w, w,
+        w, w, w, w, w, w, w, w,
+        w, w, w, w, w, w, w, w,
+        w, w, w, b, b, w, w, w,
+        w, w, w, b, b, w, w, w,
+        w, w, w, w, w, w, w, w,
+    ],
+    3: [
+        w, w, w, b, b, w, w, w,
+        w, w, w, b, b, w, w, w,
+        w, w, w, w, w, w, w, w,
+        w, w, w, b, b, w, w, w,
+        w, w, w, b, b, w, w, w,
+        w, w, w, w, w, w, w, w,
+        w, w, w, b, b, w, w, w,
+        w, w, w, b, b, w, w, w,
+    ]
+}
+
+xcord = 2  #Start with 1 player selected
+teams_select = True
+
+def update_team_selection(x):
+    for i in range(8):
+        if i < x:
+            sense.set_pixel(i, 6, yellow)
+        else:
+            sense.set_pixel(i, 6, b)
+
+def check_team_amount(x):
+    return int(x / 2)
+
+def update_scoreboard():
+    global team_icon
+    #Reset the scoreboard row (index 6)
+    team_icon[48:56] = [b] * 8  #Clear row 6 to black
+
+    #Update scores for each team
+    for i, score in enumerate(listteams):
+        if score > 0:
+            for j in range(min(score, 8)):  #Limit scores to fit within 8 LEDs
+                team_icon[48 + j] = g  # Blue for scores
+
+    #Display the updated icon
+    sense.set_pixels(team_icon)
+
+#Display the German flag before starting the game
+sense.set_pixels(german_flag)
+sleep(2)
+
+sense.set_pixels(team_icon)
+sleep(2)
+
+#Player selection loop
+update_team_selection(xcord)
+
+while teams_select:
+    for event in sense.stick.get_events():
+        if event.action == "pressed":
+            if event.direction == "right" and xcord < 8:
+                xcord += 2
+                update_team_selection(xcord)
+            elif event.direction == "left" and xcord > 2:
+                xcord -= 2
+                update_team_selection(xcord)
+            elif event.direction == "up":
+                teams_select = False  #Done selecting
+                break  #Exit player selection loop
+
+team_amount = check_team_amount(xcord)  #Determine the number of teams
+listteams = [0] * team_amount  #Initialize the list with 0 for each team
+
+#Display initial team icon
+update_scoreboard()
+
+#Game loop
+game_running = True
+while game_running:
+    for i in range(team_amount):
+        doom_penalty = False
+        fortune_bonus = False
+        player_score = listteams[i]
+
+        #Random event chance for "DOOM"
+        doom_chance = 4 if player_score < 8 else 2
+        if randint(1, doom_chance) == 1:
+            sense.show_message("DOOM", scroll_speed=0.05, text_colour=r, back_colour=w)
+            doom_penalty = True
+        elif randint(1, 3) == 1:
+            sense.show_message("FORTUNE", scroll_speed=0.05, text_colour=gr, back_colour=w)
+            fortune_bonus = True
+
+        #Display current player
+        player_message = "Player " + str(i+1)
+        sense.show_message(player_message, scroll_speed=0.05, text_colour=g, back_colour=w)
+
+        #Player action choice with time limit if score is 10 or more
+        action_selected = False
+        start_time = time()
+        time_limit = 10 if listteams[i] >= 10 else None
+
+        while not action_selected:
+            if time_limit and time() - start_time > time_limit:
+                sense.show_message("Time's Up!", scroll_speed=0.05)
+                action_selected = True
+                continue
+
+            for event in sense.stick.get_events():
+                if event.action == "pressed":
+                    if event.direction == "right":  #Correct answer
+                        #Adjusted dice roll probabilities
+                        dice_roll = choice([1, 1, 2, 3])
+                        sense.set_pixels(dice_patterns[dice_roll])  #Display dice roll
+                        sleep(2)  #Display dice roll for 2 seconds
+                        #Calculate points based on dice roll and special events
+                        points = dice_roll
+                        if fortune_bonus:
+                            points += 1
+                        if doom_penalty:
+                            points -= 2
+                        listteams[i] = max(0, listteams[i] + points)
+                        action_selected = True
+                    elif event.direction == "left":  # Skip to next player
+                        #If skipping during DOOM, apply penalty
+                        if doom_penalty:
+                            listteams[i] = max(0, listteams[i] - 2)
+                        action_selected = True
+                    elif event.direction == "down":  #Skip turn
+       
+                        if doom_penalty:
+                            listteams[i] = max(0, listteams[i] - 2)
+                        action_selected = True
+
+        #Display player's score after the roll
+        score_message = "Score: " + str(listteams[i])
+        sense.show_message(score_message, scroll_speed=0.05, text_colour=g, back_colour=w)
+
+        update_scoreboard()
+
+        #Check if any player has won
+        if listteams[i] >= 14:
+            game_running = False
+            winner_message = "Player " + str(i+1) + " wins!"
+            for color in rainbow_colors:
+                sense.show_message(winner_message, scroll_speed=0.05, back_colour=color)
+                sleep(0.5)
+
+            #Wait for downward joystick press to restart
+            sense.show_message("Press Down to Restart", scroll_speed=0.05)
+            while True:
+                for event in sense.stick.get_events():
+                    if event.action == "pressed" and event.direction == "down":
+                        # Reinitialize game variables for new game
+                        listteams = [0] * team_amount  # Reset scores
+                        game_running = True  # Restart game loop
+                        update_scoreboard()  # Reset scoreboard display
+                        break
+                if game_running:
+                    break
+
+#Restart game when requested
+sense.show_message("Restarting", scroll_speed=0.5)
