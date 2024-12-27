@@ -1,4 +1,4 @@
-German Vocabulary Review Board game. Created for a German class to enhance their expertise in the German language.
+German Vocabulary Review Boardgame. Created for a German class to enhance their expertise in the German language.
 
 
 ![Board](https://github.com/user-attachments/assets/2728de4f-9ca8-4ea2-8878-6b3a22f73b85)
